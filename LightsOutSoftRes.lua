@@ -350,10 +350,12 @@ closeListBtn:SetPoint("TOPRIGHT", 0, 0)
 -- Display function for By Boss view
 ---------------------------------------------------
 local function ShowFullListByBoss()
-    -- Clear old content
+    -- Clear old content completely
     for _, child in ipairs({listContent:GetChildren()}) do
         child:Hide()
+        child:SetParent(nil)
     end
+    wipe(listContent:GetChildren())
 
     local yOffset = 0
     local hasAny = false
@@ -483,15 +485,17 @@ end
 -- Display function for By Player view
 ---------------------------------------------------
 local function ShowFullListByPlayer()
-    -- Clear old content
+    -- Clear old content completely
     for _, child in ipairs({listContent:GetChildren()}) do
         child:Hide()
+        child:SetParent(nil)
     end
+    wipe(listContent:GetChildren())
 
     local yOffset = 0
     local hasAny = false
 
-    -- Collect all items by player
+    -- Collect all items by player, counting duplicates per item
     local playerReserves = {}
     for itemID, data in pairs(LOSR_DB.reserves) do
         for _, playerName in ipairs(data.players) do
@@ -530,17 +534,35 @@ local function ShowFullListByPlayer()
 
         yOffset = yOffset - 28
 
-        -- Items for this player
+        -- Count duplicate items for this player
+        local itemCounts = {}
         for _, item in ipairs(items) do
-            local line = listContent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            line:SetPoint("TOPLEFT", 25, yOffset)
-            line:SetWidth(315)
-            line:SetJustifyH("LEFT")
-            line:SetWordWrap(true)
+            local key = item.itemID
+            itemCounts[key] = (itemCounts[key] or 0) + 1
+        end
 
-            line:SetText("|cff87ceeb• " .. item.itemName .. "|r\n  |cffffcc00Boss:|r " .. item.bossName)
+        -- Display items, consolidating duplicates
+        local displayedItems = {}
+        for _, item in ipairs(items) do
+            local key = item.itemID
+            if not displayedItems[key] then
+                displayedItems[key] = true
+                local count = itemCounts[key]
+                
+                local line = listContent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+                line:SetPoint("TOPLEFT", 25, yOffset)
+                line:SetWidth(315)
+                line:SetJustifyH("LEFT")
+                line:SetWordWrap(true)
 
-            yOffset = yOffset - line:GetHeight() - 12
+                if count > 1 then
+                    line:SetText("|cff87ceeb• " .. item.itemName .. "|r |cff00ff00(x" .. count .. ")|r\n  |cffffcc00Boss:|r " .. item.bossName)
+                else
+                    line:SetText("|cff87ceeb• " .. item.itemName .. "|r\n  |cffffcc00Boss:|r " .. item.bossName)
+                end
+
+                yOffset = yOffset - line:GetHeight() - 12
+            end
         end
 
         yOffset = yOffset - 10  -- Extra space between players
