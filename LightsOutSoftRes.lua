@@ -319,22 +319,28 @@ local function UpdateTabButtons()
     end
 end
 
--- Scroll area - recreate this each time to clear all content
+-- Scroll area - don't use fixed names
 local listScroll
 local listContent
+local frameCounter = 0
 
 local function CreateListScrollFrame()
-    -- Hide and clear old scroll frame if it exists
+    -- Hide and destroy old scroll frame completely
     if listScroll then
         listScroll:Hide()
-        listScroll:SetParent(nil)
+        for _, child in ipairs({listScroll:GetChildren()}) do
+            child:Hide()
+        end
+        listScroll = nil
     end
     
-    listScroll = CreateFrame("ScrollFrame", "LOSR_ListScrollFrame", listFrame, "UIPanelScrollFrameTemplate")
+    -- Create unique scroll frame (avoid name collision)
+    frameCounter = frameCounter + 1
+    listScroll = CreateFrame("ScrollFrame", nil, listFrame, "UIPanelScrollFrameTemplate")
     listScroll:SetPoint("TOPLEFT", 20, -60)
     listScroll:SetPoint("BOTTOMRIGHT", -30, 60)
     
-    listContent = CreateFrame("Frame", "LOSR_ListContent", listScroll)
+    listContent = CreateFrame("Frame", nil, listScroll)
     listContent:SetWidth(360)
     listContent:SetHeight(1)
     
