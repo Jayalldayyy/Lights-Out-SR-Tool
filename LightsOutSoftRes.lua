@@ -7,6 +7,7 @@ f:RegisterEvent("LOOT_CLOSED")
 LOSR_DB = LOSR_DB or {}
 LOSR_DB.reserves = LOSR_DB.reserves or {}   -- itemID -> {itemName, bossName, players = {}}
 LOSR_DB.announce = LOSR_DB.announce or false
+LOSR_DB.listViewMode = LOSR_DB.listViewMode or "boss"  -- "boss" or "player"
 
 ---------------------------------------------------
 -- Main Display Frame 
@@ -292,9 +293,35 @@ listFrame.title = listFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarg
 listFrame.title:SetPoint("TOP", 0, -16)
 listFrame.title:SetText("<LightsOut> SoftRes - All Reservations")
 
+-- Tab buttons for switching views
+local bossTabBtn = CreateFrame("Button", nil, listFrame, "UIPanelButtonTemplate")
+bossTabBtn:SetSize(80, 20)
+bossTabBtn:SetPoint("TOPLEFT", 20, -35)
+bossTabBtn:SetText("By Boss")
+
+local playerTabBtn = CreateFrame("Button", nil, listFrame, "UIPanelButtonTemplate")
+playerTabBtn:SetSize(80, 20)
+playerTabBtn:SetPoint("LEFT", bossTabBtn, "RIGHT", 5, 0)
+playerTabBtn:SetText("By Player")
+
+-- Tab state tracking
+local function UpdateTabButtons()
+    if LOSR_DB.listViewMode == "boss" then
+        bossTabBtn:Enable()
+        playerTabBtn:Enable()
+        bossTabBtn:SetText("|cff00ff00By Boss|r")
+        playerTabBtn:SetText("By Player")
+    else
+        bossTabBtn:Enable()
+        playerTabBtn:Enable()
+        bossTabBtn:SetText("By Boss")
+        playerTabBtn:SetText("|cff00ff00By Player|r")
+    end
+end
+
 -- Scroll area 
 local listScroll = CreateFrame("ScrollFrame", "LOSR_ListScrollFrame", listFrame, "UIPanelScrollFrameTemplate")
-listScroll:SetPoint("TOPLEFT", 20, -50)
+listScroll:SetPoint("TOPLEFT", 20, -60)
 listScroll:SetPoint("BOTTOMRIGHT", -30, 60)
 
 local listContent = CreateFrame("Frame", "LOSR_ListContent", listScroll)
@@ -313,13 +340,16 @@ listScroll:SetScript("OnMouseWheel", function(self, delta)
     local new = current - (delta * step)
     new = math.max(0, math.min(new, maxScroll))
 
-    self:SetVerticalScroll(new)
+    listScroll:SetVerticalScroll(new)
 end)
 
 local closeListBtn = CreateFrame("Button", nil, listFrame, "UIPanelCloseButton")
 closeListBtn:SetPoint("TOPRIGHT", 0, 0)
 
-local function ShowFullList()
+---------------------------------------------------
+-- Display function for By Boss view
+---------------------------------------------------
+local function ShowFullListByBoss()
     -- Clear old content
     for _, child in ipairs({listContent:GetChildren()}) do
         child:Hide()
@@ -348,11 +378,6 @@ local function ShowFullList()
             bossByName[bossName] = {}
         end
         table.insert(bossByName[bossName], entry)
-    end
-
-    -- Display grouped by boss
-    for _, bossName in ipairs({"Unknown"}) do
-        -- This will be replaced by the proper sorted iteration below
     end
 
     local sortedBosses = {}
@@ -388,8 +413,6 @@ local function ShowFullList()
                 print("|cffff0000Announce is OFF. Toggle with /losr announce|r")
                 return
             end
-
-            local announceText = "|cffffcc00=== " .. self.bossName .. " ===" .. "|r\n"
 
             for _, entry in ipairs(self.bossItems) do
                 local data = entry.data
@@ -454,6 +477,115 @@ local function ShowFullList()
     end
 
     listContent:SetHeight(math.abs(yOffset) + 50)
+end
+
+---------------------------------------------------
+-- Display function for By Player view
+---------------------------------------------------
+local function ShowFullListByPlayer()
+    -- Clear old content
+    for _, child in ipairs({listContent:GetChildren()}) do
+        child:Hide()
+    end
+
+    local yOffset = 0
+    local hasAny = false
+
+    -- Collect all items by player
+    local playerReserves = {}
+    for itemID, data in pairs(LOSR_DB.reserves) do
+        for _, playerName in ipairs(data.players) do
+            if not playerReserves[playerName] then
+                playerReserves[playerName] = {}
+            end
+            table.insert(playerReserves[playerName], {
+                itemName = data.itemName,
+                bossName = data.bossName,
+                itemID = itemID
+            })
+        end
+    end
+
+    -- Sort players alphabetically
+    local sortedPlayers = {}
+    for playerName, _ in pairs(playerReserves) do
+        table.insert(sortedPlayers, playerName)
+    end
+    table.sort(sortedPlayers)
+
+    for _, playerName in ipairs(sortedPlayers) do
+        local items = playerReserves[playerName]
+        hasAny = true
+
+        -- Player header
+        local playerFrame = CreateFrame("Frame", nil, listContent)
+        playerFrame:SetSize(340, 25)
+        playerFrame:SetPoint("TOPLEFT", 10, yOffset)
+
+        local playerText = playerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        playerText:SetPoint("TOPLEFT", 0, 0)
+        playerText:SetWidth(340)
+        playerText:SetJustifyH("LEFT")
+        playerText:SetText("|cffffcc00" .. playerName .. "|r")
+
+        yOffset = yOffset - 28
+
+        -- Items for this player
+        for _, item in ipairs(items) do
+            local line = listContent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            line:SetPoint("TOPLEFT", 25, yOffset)
+            line:SetWidth(315)
+            line:SetJustifyH("LEFT")
+            line:SetWordWrap(true)
+
+            line:SetText("|cff87ceeb• " .. item.itemName .. "|r\n  |cffffcc00Boss:|r " .. item.bossName)
+
+            yOffset = yOffset - line:GetHeight() - 12
+        end
+
+        yOffset = yOffset - 10  -- Extra space between players
+    end
+
+    if not hasAny then
+        local empty = listContent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        empty:SetPoint("CENTER", 0, 0)
+        empty:SetText("No soft reserves imported yet.")
+    end
+
+    listContent:SetHeight(math.abs(yOffset) + 50)
+end
+
+---------------------------------------------------
+-- Refresh function that shows correct view
+---------------------------------------------------
+local function RefreshListDisplay()
+    listScroll:SetVerticalScroll(0)  -- Reset scroll position
+    UpdateTabButtons()
+    if LOSR_DB.listViewMode == "boss" then
+        ShowFullListByBoss()
+    else
+        ShowFullListByPlayer()
+    end
+end
+
+---------------------------------------------------
+-- Tab button click handlers
+---------------------------------------------------
+bossTabBtn:SetScript("OnClick", function()
+    LOSR_DB.listViewMode = "boss"
+    RefreshListDisplay()
+end)
+
+playerTabBtn:SetScript("OnClick", function()
+    LOSR_DB.listViewMode = "player"
+    RefreshListDisplay()
+end)
+
+---------------------------------------------------
+-- Show list frame wrapper
+---------------------------------------------------
+local function ShowFullList()
+    RefreshListDisplay()
     listFrame:Show()
 end
 
