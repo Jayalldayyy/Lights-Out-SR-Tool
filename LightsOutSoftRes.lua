@@ -347,15 +347,21 @@ local closeListBtn = CreateFrame("Button", nil, listFrame, "UIPanelCloseButton")
 closeListBtn:SetPoint("TOPRIGHT", 0, 0)
 
 ---------------------------------------------------
--- Display function for By Boss view
+-- Helper function to clear list content
 ---------------------------------------------------
-local function ShowFullListByBoss()
-    -- Clear old content completely
+local function ClearListContent()
     for _, child in ipairs({listContent:GetChildren()}) do
         child:Hide()
         child:SetParent(nil)
     end
-    wipe(listContent:GetChildren())
+end
+
+---------------------------------------------------
+-- Display function for By Boss view
+---------------------------------------------------
+local function ShowFullListByBoss()
+    -- Clear old content completely
+    ClearListContent()
 
     local yOffset = 0
     local hasAny = false
@@ -486,11 +492,7 @@ end
 ---------------------------------------------------
 local function ShowFullListByPlayer()
     -- Clear old content completely
-    for _, child in ipairs({listContent:GetChildren()}) do
-        child:Hide()
-        child:SetParent(nil)
-    end
-    wipe(listContent:GetChildren())
+    ClearListContent()
 
     local yOffset = 0
     local hasAny = false
