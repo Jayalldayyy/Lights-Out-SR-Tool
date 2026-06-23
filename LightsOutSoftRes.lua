@@ -319,50 +319,48 @@ local function UpdateTabButtons()
     end
 end
 
--- Scroll area 
-local listScroll = CreateFrame("ScrollFrame", "LOSR_ListScrollFrame", listFrame, "UIPanelScrollFrameTemplate")
-listScroll:SetPoint("TOPLEFT", 20, -60)
-listScroll:SetPoint("BOTTOMRIGHT", -30, 60)
+-- Scroll area - recreate this each time to clear all content
+local function CreateListScrollFrame()
+    -- Destroy old scroll frame if it exists
+    if listScroll and listScroll.UnregisterAllEvents then
+        listScroll:Hide()
+        listScroll:GetParent():RemoveChild(listScroll)
+    end
+    
+    listScroll = CreateFrame("ScrollFrame", "LOSR_ListScrollFrame", listFrame, "UIPanelScrollFrameTemplate")
+    listScroll:SetPoint("TOPLEFT", 20, -60)
+    listScroll:SetPoint("BOTTOMRIGHT", -30, 60)
+    
+    listContent = CreateFrame("Frame", "LOSR_ListContent", listScroll)
+    listContent:SetWidth(360)
+    listContent:SetHeight(1)
+    
+    listScroll:SetScrollChild(listContent)
+    
+    -- Enable mouse wheel scrolling 
+    listScroll:EnableMouseWheel(true)
+    listScroll:SetScript("OnMouseWheel", function(self, delta)
+        local step = 30
+        local current = self:GetVerticalScroll()
+        local maxScroll = self:GetVerticalScrollRange()
 
-local listContent = CreateFrame("Frame", "LOSR_ListContent", listScroll)
-listContent:SetWidth(360)
-listContent:SetHeight(1)
+        local new = current - (delta * step)
+        new = math.max(0, math.min(new, maxScroll))
 
-listScroll:SetScrollChild(listContent)
+        listScroll:SetVerticalScroll(new)
+    end)
+end
 
--- Enable mouse wheel scrolling 
-listScroll:EnableMouseWheel(true)
-listScroll:SetScript("OnMouseWheel", function(self, delta)
-    local step = 30
-    local current = self:GetVerticalScroll()
-    local maxScroll = self:GetVerticalScrollRange()
-
-    local new = current - (delta * step)
-    new = math.max(0, math.min(new, maxScroll))
-
-    listScroll:SetVerticalScroll(new)
-end)
+-- Create initial scroll frame
+CreateListScrollFrame()
 
 local closeListBtn = CreateFrame("Button", nil, listFrame, "UIPanelCloseButton")
 closeListBtn:SetPoint("TOPRIGHT", 0, 0)
 
 ---------------------------------------------------
--- Helper function to clear list content
----------------------------------------------------
-local function ClearListContent()
-    for _, child in ipairs({listContent:GetChildren()}) do
-        child:Hide()
-        child:SetParent(nil)
-    end
-end
-
----------------------------------------------------
 -- Display function for By Boss view
 ---------------------------------------------------
 local function ShowFullListByBoss()
-    -- Clear old content completely
-    ClearListContent()
-
     local yOffset = 0
     local hasAny = false
 
@@ -491,9 +489,6 @@ end
 -- Display function for By Player view
 ---------------------------------------------------
 local function ShowFullListByPlayer()
-    -- Clear old content completely
-    ClearListContent()
-
     local yOffset = 0
     local hasAny = false
 
@@ -583,8 +578,11 @@ end
 -- Refresh function that shows correct view
 ---------------------------------------------------
 local function RefreshListDisplay()
-    listScroll:SetVerticalScroll(0)  -- Reset scroll position
+    -- Recreate scroll frame to clear all old content
+    CreateListScrollFrame()
+    listScroll:SetVerticalScroll(0)
     UpdateTabButtons()
+    
     if LOSR_DB.listViewMode == "boss" then
         ShowFullListByBoss()
     else
