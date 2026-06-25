@@ -1,8 +1,0 @@
-## Interface: 30300
-## Title: LightsOut SoftRes
-## Author: JayALLday
-## Version: 1.4 (5/1/26)
-## Notes: SoftRes support for Chromiecraft 3.3.5
-## SavedVariables: LOSR_DB
-
-LightsOutSoftRes.lua
