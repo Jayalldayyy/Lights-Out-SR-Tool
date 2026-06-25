@@ -1,0 +1,18 @@
+## Interface: 30300
+## Title: LightsOut SoftRes
+## Notes: Soft Reserve helper for Wrath by JayALLDay
+## Author: Jayallday
+## Version: 2.0 (6/25/2026) (Beta)
+
+## SavedVariables: LOSR_DB
+
+LOSRUtils.lua
+LOSRCore.lua
+LOSRImport.lua
+LOSRAnnounce.lua
+LOSRRoll.lua
+LOSRDrops.lua
+LOSRVerdict.lua
+LOSRSummary.lua
+LOSRDisplay.lua
+LOSRList.lua
