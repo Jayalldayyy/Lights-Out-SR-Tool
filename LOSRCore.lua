@@ -11,7 +11,8 @@ LOSR_DB = LOSR_DB or {}
 LOSR_DB.reserves = LOSR_DB.reserves or {}
 LOSR_DB.announce = LOSR_DB.announce or false
 LOSR_DB.dropped = LOSR_DB.dropped or {}
-
+LOSR_DB.fulfilled = LOSR_DB.fulfilled or {}
+LOSR_DB.whisperLookup = LOSR_DB.whisperLookup ~= false
 ---------------------------------------------------
 -- Session State
 ---------------------------------------------------
@@ -28,6 +29,7 @@ function LOSR:EnsureSession()
     return LOSR_DB.session
 end
 
+
 function LOSR:StartNewSession()
     LOSR_DB.session = {
         finalized = false,
@@ -43,9 +45,10 @@ end
 function LOSR:ClearAllData()
     LOSR_DB.reserves = {}
     LOSR_DB.dropped = {}
+    LOSR_DB.fulfilled = {}
     LOSR:StartNewSession()
 
-    self:Print("All SoftRes, dropped item, and raid session data cleared.")
+    self:Print("All SoftRes, dropped item, fulfilled SR, and raid session data cleared.")
 end
 
 function LOSR:FinalizeRaid()
@@ -101,7 +104,8 @@ LOSR.currentView = LOSR.currentView or "boss"
 
 function LOSR:ImportCSV(csv)
     LOSR_DB.reserves = {}
-
+    LOSR_DB.fulfilled = {}
+	
     for line in string.gmatch(csv or "", "[^\r\n]+") do
         local itemName, itemID, bossName, playerName =
             string.match(line, '"?([^",]+)"?,(%d+),([^,]+),([^,]+)')
@@ -161,6 +165,31 @@ function LOSR:ToggleAnnounce()
     return LOSR_DB.announce
 end
 
+function LOSR:MarkSRFulfilled(itemID, playerName)
+    if not itemID or not playerName then return end
+
+    LOSR_DB.fulfilled = LOSR_DB.fulfilled or {}
+    LOSR_DB.fulfilled[itemID] = LOSR_DB.fulfilled[itemID] or {}
+    LOSR_DB.fulfilled[itemID][playerName] = true
+end
+
+function LOSR:IsSRFulfilled(itemID, playerName)
+    return LOSR_DB.fulfilled
+        and LOSR_DB.fulfilled[itemID]
+        and LOSR_DB.fulfilled[itemID][playerName]
+end
+
+function LOSR:GetActiveSRPlayers(itemID, players)
+    local active = {}
+
+    for _, name in ipairs(players or {}) do
+        if not self:IsSRFulfilled(itemID, name) then
+            table.insert(active, name)
+        end
+    end
+
+    return active
+end
 ---------------------------------------------------
 -- Slash Commands
 ---------------------------------------------------
@@ -185,6 +214,13 @@ SlashCmdList["LOSR"] = function(msg)
         if LOSR.ShowListWindow then
             LOSR:ShowListWindow()
         end
+		elseif cmd == "options" then
+
+    if LOSR.ShowOptionsWindow then
+        LOSR:ShowOptionsWindow()
+    else
+        LOSR:Print("Options module not loaded.")
+    end
 
     elseif cmd == "summary" then
 
@@ -213,6 +249,7 @@ SlashCmdList["LOSR"] = function(msg)
         print("|cff00ffffLightsOut SoftRes Commands:|r")
         print("/losr import")
         print("/losr list")
+        print("/losr options")
         print("/losr announce")
         print("/losr summary")
         print("/losr summaryraid")

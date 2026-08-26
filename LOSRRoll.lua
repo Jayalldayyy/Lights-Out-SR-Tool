@@ -10,7 +10,7 @@ timerFrame:Hide()
 
 LOSR_DB = LOSR_DB or {}
 LOSR_DB.roll = LOSR_DB.roll or {
-    rollTime = 25,
+    rollTime = 15,
     autoAnnounceCount = true,
     catchMultiRollers = true,
     allowAllRollRanges = true,
@@ -19,7 +19,7 @@ LOSR_DB.roll = LOSR_DB.roll or {
 
 function LOSR:GetRollSettings()
     LOSR_DB.roll = LOSR_DB.roll or {}
-    LOSR_DB.roll.rollTime = LOSR_DB.roll.rollTime or 25
+    LOSR_DB.roll.rollTime = LOSR_DB.roll.rollTime or 15
     LOSR_DB.roll.autoAnnounceCount = LOSR_DB.roll.autoAnnounceCount ~= false
     LOSR_DB.roll.catchMultiRollers = LOSR_DB.roll.catchMultiRollers ~= false
     LOSR_DB.roll.allowAllRollRanges = LOSR_DB.roll.allowAllRollRanges ~= false
@@ -57,7 +57,7 @@ function LOSR:StartRoll(item)
 	self.Roll.rollCounts = {}
 self.Roll.allowedRolls = {}
 
-if item.hasSR then
+if item.hasSR and item.hasActiveSR then
     local counts = self:GetPlayerCounts(item.players or {})
 
     for name, count in pairs(counts) do
@@ -258,6 +258,9 @@ function LOSR:ConfirmAwardLoot(item, winner, candidateIndex)
             item.awardedTo = winner.name
             item.awardRoll = winner.roll
             item.awardType = winner.rollType
+			if item.hasSR then
+    self:MarkSRFulfilled(item.itemID, winner.name)
+end
 
             LOSR.Roll.active = false
             LOSR.Roll.finished = false
@@ -388,7 +391,7 @@ function LOSR:RecordRoll(playerName, roll, low, high)
     self.Roll.rollCounts = self.Roll.rollCounts or {}
 self.Roll.allowedRolls = self.Roll.allowedRolls or {}
 
-local isSRRoll = self.Roll.item and self.Roll.item.hasSR
+local isSRRoll = self.Roll.item and self.Roll.item.hasSR and self.Roll.item.hasActiveSR
 local allowed = self.Roll.allowedRolls[playerName] or 0
 
 if not isSRRoll then

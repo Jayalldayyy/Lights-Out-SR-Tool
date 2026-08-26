@@ -10,9 +10,11 @@ LOSRUtils.lua
 LOSRCore.lua
 LOSRImport.lua
 LOSRAnnounce.lua
+LOSRWhisper.lua
 LOSRRoll.lua
 LOSRDrops.lua
 LOSRVerdict.lua
 LOSRSummary.lua
 LOSRDisplay.lua
 LOSRList.lua
+LOSROptions.lua

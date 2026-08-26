@@ -127,8 +127,13 @@ end
 local function GetLootSubText(item)
     local baseText = ""
 
-    if item.hasSR then
-        baseText = "|cffffcc00Reserved by:|r " .. LOSR:FormatPlayers(item.players or {}, true)
+    if item.hasSR and item.hasActiveSR then
+        baseText = "|cffffcc00Reserved by:|r " ..
+            LOSR:FormatPlayers(item.activePlayers or {}, true)
+
+    elseif item.hasSR then
+        baseText = "|cff888888SR fulfilled. Open Roll available.|r"
+
     else
         baseText = "|cff888888No SoftRes|r"
     end
@@ -224,7 +229,11 @@ function LOSR.Display:ShowItems(items)
 
     if srCount > 0 then
         announceAllButton:Show()
-        announceAllButton:SetText(LOSR:IsAnnounceEnabled() and "Announce All" or "Announce All (OFF)")
+        announceAllButton:SetText(
+            LOSR:IsAnnounceEnabled()
+            and "Announce All"
+            or "Announce All (OFF)"
+        )
     else
         announceAllButton:Hide()
     end
@@ -235,6 +244,7 @@ function LOSR.Display:ShowItems(items)
     for index, item in ipairs(display.currentItems) do
         local row = GetDisplayRow(index)
 
+        row:ClearAllPoints()
         row:SetPoint("TOPLEFT", 12, yOffset)
 
         if item.hasSR then
@@ -248,85 +258,145 @@ function LOSR.Display:ShowItems(items)
         row.button.item = item
         row.rollButton.item = item
 
+        local isCurrentRoll =
+            LOSR.Roll.item
+            and LOSR.Roll.item.itemID == item.itemID
+
+        local isActiveRoll =
+            isCurrentRoll
+            and LOSR:IsRollActive()
+
+        local isFinishedRoll =
+            isCurrentRoll
+            and LOSR.Roll.finished
+
+        local hasTie =
+            isFinishedRoll
+            and LOSR.Roll.tie
+            and #LOSR.Roll.tie > 1
+
+        ---------------------------------------------------
+        -- Awarded Item
+        ---------------------------------------------------
+
         if item.awarded then
             row.button:Hide()
             row.rollButton:Hide()
-        elseif item.hasSR then
+
+        ---------------------------------------------------
+        -- Active SR Item
+        ---------------------------------------------------
+
+        elseif item.hasSR and item.hasActiveSR then
             row.button:Show()
             row.rollButton:Show()
 
             row.button:SetText("Announce")
-
-            if LOSR.Roll.finished and LOSR.Roll.item and LOSR.Roll.item.itemID == item.itemID then
-    if LOSR.Roll.tie and #LOSR.Roll.tie > 1 then
-        row.rollButton:SetText("Reroll")
-    else
-        row.rollButton:SetText("Award")
-    end
-else
-    row.rollButton:SetText("Roll")
-end
-
             row.button:SetScript("OnClick", function(self)
                 LOSR:AnnounceLootItem(self.item)
             end)
 
+            if isActiveRoll then
+                row.rollButton:SetText("End Roll")
+
+            elseif hasTie then
+                row.rollButton:SetText("Reroll")
+
+            elseif isFinishedRoll then
+                row.rollButton:SetText("Award")
+
+            else
+                row.rollButton:SetText("Roll")
+            end
+
             row.rollButton:SetScript("OnClick", function(self)
-                if LOSR.Roll.finished and LOSR.Roll.item and LOSR.Roll.item.itemID == self.item.itemID then
-        if LOSR.Roll.tie and #LOSR.Roll.tie > 1 then
-        LOSR:RerollTie()
-        else
-        LOSR:AwardRollWinner()       
-	end
-	
-else
-    LOSR:StartRoll(self.item)
-end
+                local currentItem =
+                    LOSR.Roll.item
+                    and LOSR.Roll.item.itemID == self.item.itemID
+
+                if currentItem and LOSR:IsRollActive() then
+                   LOSR:EndRoll()
+                   return
+                end
+
+                if currentItem and LOSR.Roll.finished then
+                    if LOSR.Roll.tie and #LOSR.Roll.tie > 1 then
+                        LOSR:RerollTie()
+                    else
+                        LOSR:AwardRollWinner()
+                    end
+
+                    return
+                end
+
+                LOSR:StartRoll(self.item)
             end)
+
+        ---------------------------------------------------
+        -- Open Roll Item or Fulfilled SR Item
+        ---------------------------------------------------
+
         else
             row.rollButton:Hide()
             row.button:Show()
 
-            if LOSR.Roll.finished and LOSR.Roll.item and LOSR.Roll.item.itemID == item.itemID then
-    if LOSR.Roll.tie and #LOSR.Roll.tie > 1 then
-        row.button:SetText("Reroll")
-    else
-        row.button:SetText("Award")
-    end
-else
-    row.button:SetText("Open Roll")
-end
+            if isActiveRoll then
+                row.button:SetText("End Roll")
+
+            elseif hasTie then
+                row.button:SetText("Reroll")
+
+            elseif isFinishedRoll then
+                row.button:SetText("Award")
+
+            else
+                row.button:SetText("Open Roll")
+            end
 
             row.button:SetScript("OnClick", function(self)
-                if LOSR.Roll.finished and LOSR.Roll.item and LOSR.Roll.item.itemID == self.item.itemID then
-    if LOSR.Roll.tie and #LOSR.Roll.tie > 1 then
-        LOSR:RerollTie()
-    else
-        LOSR:AwardRollWinner()
-    end
-else
-    LOSR:StartRoll(self.item)
-end
+                local currentItem =
+                    LOSR.Roll.item
+                    and LOSR.Roll.item.itemID == self.item.itemID
 
+                if currentItem and LOSR:IsRollActive() then
+                    LOSR:EndRoll()
+                    return
+                end
+
+                if currentItem and LOSR.Roll.finished then
+                    if LOSR.Roll.tie and #LOSR.Roll.tie > 1 then
+                        LOSR:RerollTie()
+                    else
+                        LOSR:AwardRollWinner()
+                    end
+
+                    return
+                end
+
+                LOSR:StartRoll(self.item)
             end)
         end
 
+        ---------------------------------------------------
+        -- Dynamic Row Height
+        ---------------------------------------------------
+
         local rowHeight = 53
+        row.sub:SetHeight(18)
 
-row.sub:SetHeight(18)
+        if item.awarded then
+            rowHeight = 60
+            row.sub:SetHeight(24)
 
-if item.awarded then
-    rowHeight = 60
-    row.sub:SetHeight(24)
-elseif LOSR.Roll.item and LOSR.Roll.item.itemID == item.itemID then
-    if LOSR:IsRollActive() and #(LOSR.Roll.rolls or {}) > 0 then
-        rowHeight = 116
-        row.sub:SetHeight(92)
-    else
-        rowHeight = 78
-        row.sub:SetHeight(48)
-    end
-end
+        elseif isCurrentRoll then
+            if isActiveRoll and #(LOSR.Roll.rolls or {}) > 0 then
+                rowHeight = 116
+                row.sub:SetHeight(92)
+            else
+                rowHeight = 78
+                row.sub:SetHeight(48)
+            end
+        end
 
         row:SetHeight(rowHeight)
 
@@ -377,7 +447,9 @@ function LOSR:HandleLootOpened()
     link = link,
     itemName = data and data.itemName or LOSR:PlainItemName(link),
     players = data and data.players or {},
-    hasSR = hasSR
+    activePlayers = data and LOSR:GetActiveSRPlayers(itemID, data.players or {}) or {},
+    hasSR = hasSR,
+    hasActiveSR = data and #(LOSR:GetActiveSRPlayers(itemID, data.players or {})) > 0
 })
 
                 if hasSR and LOSR.RecordDroppedItem then
